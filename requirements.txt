@@ -1,3 +1,3 @@
 python-vlc>=3.0.20
-# для `python main.py --mobile` (не нужен для Tkinter-версии):
+# Only needed for `python main.py --mobile` (the Kivy UI on desktop):
 # kivy[base]>=2.3.0
