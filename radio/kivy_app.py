@@ -264,7 +264,6 @@ class RadioKivyApp(App):
         self.current: Station | None = None
         self.player = Player()
         self.player.volume = 70
-        self.player.set_error_callback(self._on_stream_error)
         root = Builder.load_string(KV)
         Clock.schedule_once(lambda _dt: root.get_screen("main").refresh(), 0)
         Clock.schedule_interval(self._poll, 1.0)
@@ -314,12 +313,6 @@ class RadioKivyApp(App):
         save_stations(self.stations, self.stations_path)
         self.main.refresh()
 
-    @mainthread
-    def _on_stream_error(self):
-        name = self.current.name if self.current else "stream"
-        self.main.ids.status.text = f"Error: could not play {name}"
-        self.main.ids.lbl_station.text = "Stream error"
-
     def _poll(self, _dt):
         if self.current is None:
             return
@@ -331,6 +324,8 @@ class RadioKivyApp(App):
             self.main.ids.status.text = "Buffering…"
         elif state == "Playing":
             self.main.ids.status.text = f"Playing: {self.current.name}"
+        elif state == "Reconnecting":
+            self.main.ids.status.text = "Stream lost, reconnecting…"
 
     def on_pause(self):
         return True          # keep playing when the app goes to background

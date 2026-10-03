@@ -19,8 +19,6 @@ class RadioApp(tk.Tk):
         self.minsize(460, 340)
 
         self.player = RadioPlayer()
-        # VLC fires events from its own thread; hop back to the Tk thread.
-        self.player.set_error_callback(lambda: self.after(0, self._on_stream_error))
         self.stations: list[Station] = load_stations()
         self.current: Station | None = None
 
@@ -163,11 +161,6 @@ class RadioApp(tk.Tk):
         save_stations(self.stations)
         self._refresh_list()
 
-    def _on_stream_error(self) -> None:
-        name = self.current.name if self.current else "stream"
-        self.status.set(f"Error: could not play {name}")
-        self.lbl_station.config(text="Stream error")
-
     # ---- polling ----------------------------------------------------------
     def _poll(self) -> None:
         if self.current is not None:
@@ -179,6 +172,8 @@ class RadioApp(tk.Tk):
                 self.status.set("Buffering…")
             elif state == "Playing":
                 self.status.set(f"Playing: {self.current.name}")
+            elif state == "Reconnecting":
+                self.status.set("Stream lost, reconnecting…")
         self.after(POLL_MS, self._poll)
 
     def _on_close(self) -> None:

@@ -26,6 +26,7 @@ The mobile UI on the desktop needs Kivy: `pip install "kivy[base]"`.
 * Double-click or Enter on a station to play it
 * Volume control
 * Current track title when the station sends ICY metadata
+* Automatic reconnection when a stream drops (growing delay: 2, 4, 8, 15, 30 s)
 * Station search in the [radio-browser.info](https://www.radio-browser.info) catalog:
   the Search button; a found station can be previewed or added to your list
 
