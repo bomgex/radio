@@ -1,5 +1,5 @@
 [app]
-title = Интернет-радио
+title = Internet Radio
 package.name = internetradio
 package.domain = org.pyotr
 version = 1.0

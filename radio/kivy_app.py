@@ -55,14 +55,14 @@ KV = """
             size_hint_y: None
             height: dp(44)
             Label:
-                text: "Интернет-радио"
+                text: "Internet Radio"
                 font_size: "20sp"
                 bold: True
                 halign: "left"
                 text_size: self.size
                 valign: "middle"
             Button:
-                text: "Поиск"
+                text: "Search"
                 size_hint_x: None
                 width: dp(100)
                 on_release: app.root.current = "search"
@@ -75,7 +75,7 @@ KV = """
                 height: self.minimum_height
         Label:
             id: lbl_station
-            text: "Ничего не играет"
+            text: "Nothing playing"
             bold: True
             font_size: "17sp"
             size_hint_y: None
@@ -97,12 +97,12 @@ KV = """
             height: dp(48)
             spacing: dp(8)
             Button:
-                text: "Стоп"
+                text: "Stop"
                 size_hint_x: None
                 width: dp(90)
                 on_release: root.stop()
             Label:
-                text: "Громк."
+                text: "Vol."
                 size_hint_x: None
                 width: dp(56)
             Slider:
@@ -113,7 +113,7 @@ KV = """
                 on_value: root.set_volume(self.value)
         Label:
             id: status
-            text: "Готово"
+            text: "Ready"
             color: 0.6, 0.6, 0.6, 1
             size_hint_y: None
             height: dp(22)
@@ -138,11 +138,11 @@ KV = """
                 on_release: app.root.current = "main"
             TextInput:
                 id: query
-                hint_text: "Название станции"
+                hint_text: "Station name"
                 multiline: False
                 on_text_validate: root.search()
             Button:
-                text: "Искать"
+                text: "Search"
                 size_hint_x: None
                 width: dp(90)
                 on_release: root.search()
@@ -155,7 +155,7 @@ KV = """
                 height: self.minimum_height
         Label:
             id: status
-            text: "Нажмите на станцию, чтобы послушать; «+» добавит её в список"
+            text: "Tap a station to listen; \"+\" adds it to your list"
             color: 0.6, 0.6, 0.6, 1
             size_hint_y: None
             height: dp(22)
@@ -221,7 +221,7 @@ class SearchScreen(Screen):
         if not q or self._busy:
             return
         self._busy = True
-        self.ids.status.text = "Ищу…"
+        self.ids.status.text = "Searching…"
         threading.Thread(target=self._worker, args=(q,), daemon=True).start()
 
     def _worker(self, q: str):
@@ -243,20 +243,20 @@ class SearchScreen(Screen):
             box.add_widget(Row(title, "+",
                                on_tap=lambda r=r: app.play(r.to_station()),
                                on_action=lambda r=r: self._add(r)))
-        self.ids.status.text = f"Найдено: {len(results)}" if results else "Ничего не найдено"
+        self.ids.status.text = f"Found: {len(results)}" if results else "Nothing found"
 
     @mainthread
     def _error(self, message: str):
         self._busy = False
-        self.ids.status.text = f"Ошибка: {message}"
+        self.ids.status.text = f"Error: {message}"
 
     def _add(self, r: SearchResult):
         added = App.get_running_app().add_station(r.to_station())
-        self.ids.status.text = f"Добавлено: {r.name}" if added else "Уже есть в списке"
+        self.ids.status.text = f"Added: {r.name}" if added else "Already in the list"
 
 
 class RadioKivyApp(App):
-    title = "Интернет-радио"
+    title = "Internet Radio"
 
     def build(self):
         self.stations_path = self._user_stations_path()
@@ -288,15 +288,15 @@ class RadioKivyApp(App):
         self.player.play(st.url)
         self.main.ids.lbl_station.text = st.name
         self.main.ids.lbl_track.text = ""
-        self.main.ids.status.text = "Подключение…"
+        self.main.ids.status.text = "Connecting…"
         self.main.refresh()
 
     def stop_playback(self):
         self.player.stop()
         self.current = None
-        self.main.ids.lbl_station.text = "Ничего не играет"
+        self.main.ids.lbl_station.text = "Nothing playing"
         self.main.ids.lbl_track.text = ""
-        self.main.ids.status.text = "Остановлено"
+        self.main.ids.status.text = "Stopped"
         self.main.refresh()
 
     def add_station(self, st: Station) -> bool:
@@ -316,9 +316,9 @@ class RadioKivyApp(App):
 
     @mainthread
     def _on_stream_error(self):
-        name = self.current.name if self.current else "поток"
-        self.main.ids.status.text = f"Ошибка: не удалось воспроизвести {name}"
-        self.main.ids.lbl_station.text = "Ошибка потока"
+        name = self.current.name if self.current else "stream"
+        self.main.ids.status.text = f"Error: could not play {name}"
+        self.main.ids.lbl_station.text = "Stream error"
 
     def _poll(self, _dt):
         if self.current is None:
@@ -328,9 +328,9 @@ class RadioKivyApp(App):
         if track:
             self.main.ids.lbl_track.text = track
         if state in ("Opening", "Buffering"):
-            self.main.ids.status.text = "Буферизация…"
+            self.main.ids.status.text = "Buffering…"
         elif state == "Playing":
-            self.main.ids.status.text = f"Играет: {self.current.name}"
+            self.main.ids.status.text = f"Playing: {self.current.name}"
 
     def on_pause(self):
         return True          # keep playing when the app goes to background

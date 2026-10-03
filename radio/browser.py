@@ -77,7 +77,7 @@ def search_stations(query: str, limit: int = 50) -> list[SearchResult]:
         except OSError as exc:  # includes URLError / HTTPError / timeouts
             last_error = exc
     else:
-        raise OSError(f"radio-browser.info недоступен: {last_error}")
+        raise OSError(f"radio-browser.info is unreachable: {last_error}")
 
     results = []
     for item in data:
