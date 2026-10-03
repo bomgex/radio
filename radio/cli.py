@@ -11,7 +11,7 @@ from .stations import load_stations, save_stations
 def main() -> None:
     stations = load_stations()
     if not stations:
-        print("Список станций пуст (stations.json).")
+        print("The station list is empty (stations.json).")
         return
 
     player = RadioPlayer()
@@ -25,15 +25,15 @@ def main() -> None:
             print(f"{mark} {i:2d}. {st.name:<28} {st.genre}")
 
     found = []
-    print("Команды: номер - играть, l - список, s - стоп, v <0-100> - громкость, q - выход")
-    print("Поиск:   f <название> - искать, p <n> - слушать найденную, a <n> - добавить в список")
+    print("Commands: number - play, l - list, s - stop, v <0-100> - volume, q - quit")
+    print("Search:   f <name> - search, p <n> - play result, a <n> - add result to the list")
     show_list()
     try:
         while True:
             track = player.now_playing()
             if track and track != last_track:
                 last_track = track
-                print(f"   Сейчас играет: {track}")
+                print(f"   Now playing: {track}")
 
             cmd = input("> ").strip().lower()
             if not cmd:
@@ -45,49 +45,49 @@ def main() -> None:
             elif cmd == "s":
                 player.stop()
                 current = None
-                print("Остановлено")
+                print("Stopped")
             elif cmd.startswith("f "):
                 try:
                     found = search_stations(cmd[2:])
                 except OSError as exc:
-                    print(f"Ошибка поиска: {exc}")
+                    print(f"Search error: {exc}")
                     continue
                 if not found:
-                    print("Ничего не найдено")
+                    print("Nothing found")
                 for i, r in enumerate(found, 1):
                     print(f"  {i:2d}. {r.name[:34]:<34} {r.country[:18]:<18} {r.quality}")
             elif cmd.startswith(("p ", "a ")) and cmd[2:].strip().isdigit():
                 n = int(cmd[2:])
                 if not 1 <= n <= len(found):
-                    print("Нет такого номера в результатах поиска")
+                    print("No such number in the search results")
                     continue
                 st = found[n - 1].to_station()
                 if cmd[0] == "p":
                     current = st
                     last_track = ""
                     player.play(st.url)
-                    print(f"Играет: {st.name}")
+                    print(f"Playing: {st.name}")
                     time.sleep(1.5)
                 elif any(s.url == st.url for s in stations):
-                    print("Уже есть в списке")
+                    print("Already in the list")
                 else:
                     stations.append(st)
                     save_stations(stations)
-                    print(f"Добавлено: {st.name}")
+                    print(f"Added: {st.name}")
             elif cmd.startswith("v"):
                 try:
                     player.volume = int(cmd[1:].strip())
-                    print(f"Громкость: {player.volume}")
+                    print(f"Volume: {player.volume}")
                 except ValueError:
-                    print("Пример: v 50")
+                    print("Example: v 50")
             elif cmd.isdigit() and 1 <= int(cmd) <= len(stations):
                 current = stations[int(cmd) - 1]
                 last_track = ""
                 player.play(current.url)
-                print(f"Играет: {current.name}")
+                print(f"Playing: {current.name}")
                 time.sleep(1.5)
             else:
-                print("Неизвестная команда")
+                print("Unknown command")
     except (KeyboardInterrupt, EOFError):
         pass
     finally:

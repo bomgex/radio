@@ -14,7 +14,7 @@ POLL_MS = 1000
 class RadioApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("Интернет-радио")
+        self.title("Internet Radio")
         self.geometry("560x420")
         self.minsize(460, 340)
 
@@ -43,8 +43,8 @@ class RadioApp(tk.Tk):
 
         self.tree = ttk.Treeview(frame, columns=("name", "genre"), show="headings",
                                  selectmode="browse")
-        self.tree.heading("name", text="Станция")
-        self.tree.heading("genre", text="Жанр")
+        self.tree.heading("name", text="Station")
+        self.tree.heading("genre", text="Genre")
         self.tree.column("name", width=320)
         self.tree.column("genre", width=120)
         self.tree.bind("<Double-1>", lambda _e: self._play_selected())
@@ -58,7 +58,7 @@ class RadioApp(tk.Tk):
         # Now playing
         info = ttk.Frame(self, padding=(8, 0, 8, 4))
         info.pack(fill="x")
-        self.lbl_station = ttk.Label(info, text="Ничего не играет",
+        self.lbl_station = ttk.Label(info, text="Nothing playing",
                                      font=("Segoe UI", 11, "bold"))
         self.lbl_station.pack(anchor="w")
         self.lbl_track = ttk.Label(info, text="", foreground="#555")
@@ -67,13 +67,13 @@ class RadioApp(tk.Tk):
         # Controls
         ctl = ttk.Frame(self, padding=8)
         ctl.pack(fill="x")
-        ttk.Button(ctl, text="▶ Играть", command=self._play_selected).pack(side="left")
-        ttk.Button(ctl, text="■ Стоп", command=self._stop).pack(side="left", padx=(6, 0))
-        ttk.Button(ctl, text="+ Добавить", command=self._add_station).pack(side="left", padx=(18, 0))
-        ttk.Button(ctl, text="− Удалить", command=self._remove_station).pack(side="left", padx=(6, 0))
-        ttk.Button(ctl, text="🔍 Поиск", command=self._open_search).pack(side="left", padx=(6, 0))
+        ttk.Button(ctl, text="▶ Play", command=self._play_selected).pack(side="left")
+        ttk.Button(ctl, text="■ Stop", command=self._stop).pack(side="left", padx=(6, 0))
+        ttk.Button(ctl, text="+ Add", command=self._add_station).pack(side="left", padx=(18, 0))
+        ttk.Button(ctl, text="− Remove", command=self._remove_station).pack(side="left", padx=(6, 0))
+        ttk.Button(ctl, text="🔍 Search", command=self._open_search).pack(side="left", padx=(6, 0))
 
-        ttk.Label(ctl, text="Громкость").pack(side="left", padx=(18, 4))
+        ttk.Label(ctl, text="Volume").pack(side="left", padx=(18, 4))
         self.volume = tk.IntVar(value=70)
         self.player.volume = 70
         ttk.Scale(ctl, from_=0, to=100, variable=self.volume,
@@ -81,7 +81,7 @@ class RadioApp(tk.Tk):
                   ).pack(side="left", fill="x", expand=True)
 
         # Status bar
-        self.status = tk.StringVar(value="Готово")
+        self.status = tk.StringVar(value="Ready")
         ttk.Label(self, textvariable=self.status, anchor="w", relief="sunken",
                   padding=(6, 2)).pack(fill="x", side="bottom")
 
@@ -108,23 +108,23 @@ class RadioApp(tk.Tk):
         self.player.play(st.url)
         self.lbl_station.config(text=st.name)
         self.lbl_track.config(text="")
-        self.status.set(f"Подключение: {st.url}")
+        self.status.set(f"Connecting: {st.url}")
 
     def _stop(self) -> None:
         self.player.stop()
         self.current = None
-        self.lbl_station.config(text="Ничего не играет")
+        self.lbl_station.config(text="Nothing playing")
         self.lbl_track.config(text="")
-        self.status.set("Остановлено")
+        self.status.set("Stopped")
 
     def _add_station(self) -> None:
-        name = simpledialog.askstring("Новая станция", "Название:", parent=self)
+        name = simpledialog.askstring("New station", "Name:", parent=self)
         if not name:
             return
-        url = simpledialog.askstring("Новая станция", "URL потока:", parent=self)
+        url = simpledialog.askstring("New station", "Stream URL:", parent=self)
         if not url:
             return
-        genre = simpledialog.askstring("Новая станция", "Жанр (необязательно):", parent=self) or ""
+        genre = simpledialog.askstring("New station", "Genre (optional):", parent=self) or ""
         self.stations.append(Station(name.strip(), url.strip(), genre.strip()))
         save_stations(self.stations)
         self._refresh_list()
@@ -155,7 +155,7 @@ class RadioApp(tk.Tk):
             return
         idx = int(sel[0])
         st = self.stations[idx]
-        if not messagebox.askyesno("Удалить", f"Удалить станцию «{st.name}»?", parent=self):
+        if not messagebox.askyesno("Remove", f"Remove station \"{st.name}\"?", parent=self):
             return
         if self.current is st:
             self._stop()
@@ -164,9 +164,9 @@ class RadioApp(tk.Tk):
         self._refresh_list()
 
     def _on_stream_error(self) -> None:
-        name = self.current.name if self.current else "поток"
-        self.status.set(f"Ошибка: не удалось воспроизвести {name}")
-        self.lbl_station.config(text="Ошибка потока")
+        name = self.current.name if self.current else "stream"
+        self.status.set(f"Error: could not play {name}")
+        self.lbl_station.config(text="Stream error")
 
     # ---- polling ----------------------------------------------------------
     def _poll(self) -> None:
@@ -176,9 +176,9 @@ class RadioApp(tk.Tk):
             if track:
                 self.lbl_track.config(text=track)
             if state in ("Opening", "Buffering"):
-                self.status.set("Буферизация…")
+                self.status.set("Buffering…")
             elif state == "Playing":
-                self.status.set(f"Играет: {self.current.name}")
+                self.status.set(f"Playing: {self.current.name}")
         self.after(POLL_MS, self._poll)
 
     def _on_close(self) -> None:

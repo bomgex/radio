@@ -22,9 +22,9 @@ try:
     import vlc
 except (ImportError, OSError) as exc:  # pragma: no cover
     raise SystemExit(
-        "Не удалось загрузить libVLC. Установите VLC (https://www.videolan.org) "
-        "и пакет python-vlc (pip install python-vlc).\n"
-        f"Подробности: {exc}"
+        "Could not load libVLC. Install VLC (https://www.videolan.org) "
+        "and the python-vlc package (pip install python-vlc).\n"
+        f"Details: {exc}"
     )
 
 

@@ -14,7 +14,7 @@ class SearchDialog(tk.Toplevel):
     def __init__(self, master: tk.Tk, on_play: Callable[[Station], None],
                  on_add: Callable[[Station], None]) -> None:
         super().__init__(master)
-        self.title("Поиск станций (radio-browser.info)")
+        self.title("Station search (radio-browser.info)")
         self.geometry("720x440")
         self.minsize(560, 320)
         self.transient(master)
@@ -30,20 +30,20 @@ class SearchDialog(tk.Toplevel):
     def _build_ui(self) -> None:
         top = ttk.Frame(self, padding=8)
         top.pack(fill="x")
-        ttk.Label(top, text="Название:").pack(side="left")
+        ttk.Label(top, text="Name:").pack(side="left")
         self.query = tk.StringVar()
         self.entry = ttk.Entry(top, textvariable=self.query)
         self.entry.pack(side="left", fill="x", expand=True, padx=6)
         self.entry.bind("<Return>", lambda _e: self._search())
-        self.btn_search = ttk.Button(top, text="Искать", command=self._search)
+        self.btn_search = ttk.Button(top, text="Search", command=self._search)
         self.btn_search.pack(side="left")
 
         frame = ttk.Frame(self, padding=(8, 0, 8, 0))
         frame.pack(fill="both", expand=True)
         cols = ("name", "country", "quality", "tags")
         self.tree = ttk.Treeview(frame, columns=cols, show="headings", selectmode="browse")
-        for col, title, width in (("name", "Станция", 240), ("country", "Страна", 130),
-                                  ("quality", "Качество", 80), ("tags", "Теги", 220)):
+        for col, title, width in (("name", "Station", 240), ("country", "Country", 130),
+                                  ("quality", "Quality", 80), ("tags", "Tags", 220)):
             self.tree.heading(col, text=title)
             self.tree.column(col, width=width, stretch=(col in ("name", "tags")))
         self.tree.bind("<Double-1>", lambda _e: self._play())
@@ -54,9 +54,9 @@ class SearchDialog(tk.Toplevel):
 
         bottom = ttk.Frame(self, padding=8)
         bottom.pack(fill="x")
-        ttk.Button(bottom, text="▶ Прослушать", command=self._play).pack(side="left")
-        ttk.Button(bottom, text="+ В мой список", command=self._add).pack(side="left", padx=(6, 0))
-        self.status = tk.StringVar(value="Введите название и нажмите Enter")
+        ttk.Button(bottom, text="▶ Preview", command=self._play).pack(side="left")
+        ttk.Button(bottom, text="+ Add to my list", command=self._add).pack(side="left", padx=(6, 0))
+        self.status = tk.StringVar(value="Type a name and press Enter")
         ttk.Label(bottom, textvariable=self.status, foreground="#555").pack(side="left", padx=12)
 
     # ---- search -----------------------------------------------------------
@@ -66,7 +66,7 @@ class SearchDialog(tk.Toplevel):
             return
         self._busy = True
         self.btn_search.state(["disabled"])
-        self.status.set("Ищу…")
+        self.status.set("Searching…")
         threading.Thread(target=self._search_worker, args=(q,), daemon=True).start()
 
     def _search_worker(self, q: str) -> None:
@@ -86,14 +86,14 @@ class SearchDialog(tk.Toplevel):
                              values=(r.name, r.country, r.quality, r.tags))
         if results:
             self.tree.selection_set("0")
-            self.status.set(f"Найдено: {len(results)}")
+            self.status.set(f"Found: {len(results)}")
         else:
-            self.status.set("Ничего не найдено")
+            self.status.set("Nothing found")
 
     def _show_error(self, message: str) -> None:
         self._busy = False
         self.btn_search.state(["!disabled"])
-        self.status.set(f"Ошибка: {message}")
+        self.status.set(f"Error: {message}")
 
     # ---- actions ----------------------------------------------------------
     def _selected(self) -> SearchResult | None:
@@ -109,4 +109,4 @@ class SearchDialog(tk.Toplevel):
         r = self._selected()
         if r is not None:
             self._on_add(r.to_station())
-            self.status.set(f"Добавлено: {r.name}")
+            self.status.set(f"Added: {r.name}")
