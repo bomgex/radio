@@ -63,5 +63,10 @@
     "name": "SomaFM Indie Pop Rocks! (128k AAC)",
     "url": "https://ice2.somafm.com/indiepop-128-aac",
     "genre": "Indie, Indie Pop"
+  },
+  {
+    "name": "Hit FM (UKraine) - 128kb/s",
+    "url": "http://195.95.206.17/HitFM",
+    "genre": "Dance, Pop"
   }
 ]
