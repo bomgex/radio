@@ -1,0 +1,67 @@
+[
+  {
+    "name": "Радио Рекорд",
+    "url": "https://radiorecord.hostingradio.ru/rr_main96.aacp",
+    "genre": "Dance"
+  },
+  {
+    "name": "Наше Радио",
+    "url": "https://nashe1.hostingradio.ru/nashe-128.mp3",
+    "genre": "Rock"
+  },
+  {
+    "name": "Jazz FM (Москва)",
+    "url": "https://nashe1.hostingradio.ru/jazz-128.mp3",
+    "genre": "Jazz"
+  },
+  {
+    "name": "SomaFM Groove Salad",
+    "url": "https://ice1.somafm.com/groovesalad-128-mp3",
+    "genre": "Ambient"
+  },
+  {
+    "name": "SomaFM Drone Zone",
+    "url": "https://ice1.somafm.com/dronezone-128-mp3",
+    "genre": "Ambient"
+  },
+  {
+    "name": "SomaFM Indie Pop Rocks",
+    "url": "https://ice1.somafm.com/indiepop-128-mp3",
+    "genre": "Indie"
+  },
+  {
+    "name": "Radio Paradise",
+    "url": "https://stream.radioparadise.com/mp3-128",
+    "genre": "Eclectic"
+  },
+  {
+    "name": "Classic FM (UK)",
+    "url": "https://media-ice.musicradio.com/ClassicFMMP3",
+    "genre": "Classical"
+  },
+  {
+    "name": "Chillhop (FluxFM)",
+    "url": "https://streams.fluxfm.de/Chillhop/mp3-320/streams.fluxfm.de/",
+    "genre": "Lo-fi"
+  },
+  {
+    "name": "181.fm The Eagle",
+    "url": "http://listen.181fm.com/181-eagle_128k.mp3",
+    "genre": "Classic Rock"
+  },
+  {
+    "name": "Radio Nostalgija AAC",
+    "url": "http://nostalgie48.streaming.rs:9270/",
+    "genre": ""
+  },
+  {
+    "name": "Sky Radio Nederland",
+    "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/SKYRADIO.mp3?dist=skyradio_web&amp;ttag=talpa_consent:1&amp;gdpr=1&amp;gdpr_consent=CPd5woAPd5woAADABBNLCcCsAP_AAEJAAAAAGgQGAAKgAXABAADIAIkATABNACeAGIANwAfgBAACMAHeAQgAi0BHAEdAJcATsArICKQF5gL2AYIA0ADBICYAFQALgAgABkAEQAJoATwAxAB-AEAAIwAd4BCACLQEcAR0AnYCKQF5gMEAKCQCQAKgAgABkAEQAJgATwB3gEcAXmKgBgBMAI4AvMZADACYARwBeY6AWABUAEAAMgAiABMACeAGIAd4BFgCOALzHAAgALgEIIQBAAmABiAHeARwkABAAuSgDABEACYAGIAd4BHAF5lIBYAFQAQAAyACIAEwAJ4AYgB3gEWAI4AvMoABAAuA.e8AAAAAAA7AA%22%20title=%22Sky%20Radio%20-%20Non-Stop%22",
+    "genre": ""
+  },
+  {
+    "name": "SomaFM Indie Pop Rocks! (128k AAC)",
+    "url": "https://ice2.somafm.com/indiepop-128-aac",
+    "genre": "Indie, Indie Pop"
+  }
+]
