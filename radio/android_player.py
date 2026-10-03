@@ -7,11 +7,15 @@ connections trigger an automatic reconnect with a growing delay.
 from __future__ import annotations
 
 import threading
+import time
 from typing import Optional
 
 from jnius import PythonJavaClass, autoclass, java_method
 
 from .reconnect import Reconnector
+
+STALL_SECONDS = 12      # no playback progress for this long -> reconnect
+WATCHDOG_PERIOD = 2
 
 MediaPlayer = autoclass("android.media.MediaPlayer")
 AudioAttributes = autoclass("android.media.AudioAttributes")
@@ -76,6 +80,12 @@ class AndroidPlayer:
         self._on_completion = _OnCompletionListener(self._on_stream_lost)
         self._focus_listener = _AudioFocusListener(self._on_focus_change)
         self._audio_manager = PythonActivity.mActivity.getSystemService(Context.AUDIO_SERVICE)
+        # A stalled connection leaves MediaPlayer "playing" with no data and no
+        # error callback, so a watchdog checks that the position advances.
+        self._last_pos = -1
+        self._last_advance = time.monotonic()
+        self._closed = False
+        threading.Thread(target=self._watchdog, daemon=True).start()
 
     # ---- playback ---------------------------------------------------------
     def play(self, url: str) -> None:
@@ -163,6 +173,31 @@ class AndroidPlayer:
         if url is not None:
             self._start(url)
 
+    def _watchdog(self) -> None:
+        while not self._closed:
+            time.sleep(WATCHDOG_PERIOD)
+            try:
+                self._check_stall()
+            except Exception:
+                pass
+
+    def _check_stall(self) -> None:
+        now = time.monotonic()
+        mp = self._mp
+        if (self.current_url is None or self._reconnector.pending
+                or self._state != "Playing" or mp is None or not mp.isPlaying()):
+            self._last_pos = -1
+            self._last_advance = now
+            return
+        pos = mp.getCurrentPosition()
+        if pos != self._last_pos:
+            self._last_pos = pos
+            self._last_advance = now
+        elif now - self._last_advance > STALL_SECONDS:
+            self._last_advance = now
+            self._state = "Reconnecting"
+            self._reconnector.schedule()
+
     # ---- audio focus ------------------------------------------------------
     def _on_focus_change(self, change: int) -> None:
         mp = self._mp
@@ -203,4 +238,5 @@ class AndroidPlayer:
         return ""
 
     def release(self) -> None:
+        self._closed = True
         self.stop()

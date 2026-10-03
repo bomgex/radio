@@ -3,9 +3,14 @@ from __future__ import annotations
 
 import os
 import sys
+import threading
+import time
 from typing import Optional
 
 from .reconnect import Reconnector
+
+STALL_SECONDS = 12      # no playback progress for this long -> reconnect
+WATCHDOG_PERIOD = 2
 
 # On Windows python-vlc must find libvlc.dll; register the standard install
 # directory before importing vlc.  Override with the VLC_PATH env variable.
@@ -48,6 +53,12 @@ class RadioPlayer:
         events = self._player.event_manager()
         events.event_attach(vlc.EventType.MediaPlayerEncounteredError, self._on_stream_lost)
         events.event_attach(vlc.EventType.MediaPlayerEndReached, self._on_stream_lost)
+        # A stalled connection keeps VLC in "Playing" with no data flowing and
+        # fires no event, so a watchdog checks that the stream position advances.
+        self._last_pos = -1
+        self._last_advance = time.monotonic()
+        self._closed = False
+        threading.Thread(target=self._watchdog, daemon=True).start()
 
     # ---- playback ---------------------------------------------------------
     def play(self, url: str) -> None:
@@ -90,6 +101,29 @@ class RadioPlayer:
         self._player.stop()
         self._start(url)
 
+    def _watchdog(self) -> None:
+        while not self._closed:
+            time.sleep(WATCHDOG_PERIOD)
+            try:
+                self._check_stall()
+            except Exception:
+                pass
+
+    def _check_stall(self) -> None:
+        now = time.monotonic()
+        if (self.current_url is None or self._reconnector.pending
+                or self._player.get_state() != vlc.State.Playing):
+            self._last_pos = -1
+            self._last_advance = now
+            return
+        pos = self._player.get_time()
+        if pos != self._last_pos:
+            self._last_pos = pos
+            self._last_advance = now
+        elif now - self._last_advance > STALL_SECONDS:
+            self._last_advance = now
+            self._reconnector.schedule()
+
     # ---- volume -----------------------------------------------------------
     @property
     def volume(self) -> int:
@@ -109,6 +143,7 @@ class RadioPlayer:
     def release(self) -> None:
         if self._instance is None:          # already released
             return
+        self._closed = True
         self.stop()
         self._player.release()
         self._instance.release()
