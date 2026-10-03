@@ -10,7 +10,9 @@ source.exclude_dirs = .github, .buildozer, bin, __pycache__, .git
 # Desktop-only modules (Tkinter, VLC) are not needed in the APK
 source.exclude_patterns = radio/gui.py, radio/search_dialog.py, radio/cli.py, radio/player.py
 
-requirements = python3,kivy==2.3.1,pyjnius
+# certifi: CA bundle for HTTPS requests (the bundled Python cannot use the
+# Android system certificate store)
+requirements = python3,kivy==2.3.1,pyjnius,certifi
 
 # python-for-android "master" (= release 2026.05.09) breaks at the package
 # install stage: "pip install -U pip" inside the Python 3.14 build venv fails with

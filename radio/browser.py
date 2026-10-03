@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import random
 import socket
+import ssl
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -39,6 +40,20 @@ class SearchResult:
         return Station(self.name, self.url, self.genre)
 
 
+def _ssl_context() -> ssl.SSLContext:
+    """TLS context with a CA bundle.
+
+    The Python bundled into the Android APK has no access to the system CA store,
+    so HTTPS verification fails with "unable to get local issuer certificate".
+    certifi ships its own bundle; fall back to the system store when it is absent.
+    """
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        return ssl.create_default_context()
+
+
 def _api_hosts() -> list[str]:
     """Resolve the current API mirrors (the project asks clients to pick randomly)."""
     try:
@@ -67,11 +82,12 @@ def search_stations(query: str, limit: int = 50) -> list[SearchResult]:
         "reverse": "true",
     })
     last_error: Exception | None = None
+    context = _ssl_context()
     for host in _api_hosts():
         url = f"https://{host}/json/stations/search?{params}"
         req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
         try:
-            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            with urllib.request.urlopen(req, timeout=TIMEOUT, context=context) as resp:
                 data = json.load(resp)
             break
         except OSError as exc:  # includes URLError / HTTPError / timeouts
