@@ -31,8 +31,10 @@ android.archs = arm64-v8a, armeabi-v7a
 android.accept_sdk_license = True
 # keep the CPU awake so the stream does not stop when the screen turns off
 android.wakelock = True
-# many radio streams are plain http; Android blocks cleartext by default
-android.extra_manifest_application_arguments = android:usesCleartextTraffic="true"
+# many radio streams are plain http; Android blocks cleartext by default.
+# This option takes a path to a file whose contents are inserted as attributes
+# of the <application> element.
+android.extra_manifest_application_arguments = android_manifest_application_args.txt
 android.allow_backup = True
 
 [buildozer]
