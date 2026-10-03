@@ -11,6 +11,13 @@ source.exclude_dirs = .github, .buildozer, bin, __pycache__, .git
 source.exclude_patterns = radio/gui.py, radio/search_dialog.py, radio/cli.py, radio/player.py
 
 requirements = python3,kivy==2.3.1,pyjnius
+
+# python-for-android "master" (= release 2026.05.09) breaks at the package
+# install stage: "pip install -U pip" inside the Python 3.14 build venv fails with
+# ImportError: cannot import name 'BuildDependencyInstallError'.
+# The fix (kivy/python-for-android#3360) is only on the develop branch.
+p4a.branch = develop
+p4a.commit = e772ad93f20a
 orientation = portrait
 fullscreen = 0
 
