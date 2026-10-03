@@ -1,3 +1,4 @@
 python-vlc>=3.0.20
+certifi
 # Only needed for `python main.py --mobile` (the Kivy UI on desktop):
 # kivy[base]>=2.3.0
