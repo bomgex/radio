@@ -68,5 +68,10 @@
     "name": "Hit FM (UKraine) - 128kb/s",
     "url": "http://195.95.206.17/HitFM",
     "genre": "Dance, Pop"
+  },
+  {
+    "name": "Sky Radio",
+    "url": "https://www.mp3streams.nl/zender/skyradio/stream/8-mp3-128",
+    "genre": ""
   }
 ]

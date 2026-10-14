@@ -54,6 +54,33 @@ class _OnCompletionListener(PythonJavaClass):
         self._callback(mp)
 
 
+class _OnBufferingUpdateListener(PythonJavaClass):
+    __javainterfaces__ = ["android/media/MediaPlayer$OnBufferingUpdateListener"]
+    __javacontext__ = "app"
+
+    def __init__(self, callback):
+        super().__init__()
+        self._callback = callback
+
+    @java_method("(Landroid/media/MediaPlayer;I)V")
+    def onBufferingUpdate(self, mp, percent):
+        self._callback(mp, percent)
+
+
+class _OnInfoListener(PythonJavaClass):
+    __javainterfaces__ = ["android/media/MediaPlayer$OnInfoListener"]
+    __javacontext__ = "app"
+
+    def __init__(self, callback):
+        super().__init__()
+        self._callback = callback
+
+    @java_method("(Landroid/media/MediaPlayer;II)Z")
+    def onInfo(self, mp, what, extra):
+        self._callback(mp, what)
+        return True
+
+
 class _AudioFocusListener(PythonJavaClass):
     __javainterfaces__ = ["android/media/AudioManager$OnAudioFocusChangeListener"]
     __javacontext__ = "app"
@@ -78,6 +105,9 @@ class AndroidPlayer:
         # Keep listener objects alive: Java holds only weak references to them.
         self._on_error = _OnErrorListener(self._on_stream_lost)
         self._on_completion = _OnCompletionListener(self._on_stream_lost)
+        self._on_buffering_update = _OnBufferingUpdateListener(self._on_buffering)
+        self._on_info = _OnInfoListener(self._on_player_info)
+        self._buffer = 0
         self._focus_listener = _AudioFocusListener(self._on_focus_change)
         self._audio_manager = PythonActivity.mActivity.getSystemService(Context.AUDIO_SERVICE)
         # A stalled connection leaves MediaPlayer "playing" with no data and no
@@ -108,6 +138,9 @@ class AndroidPlayer:
         mp.setAudioAttributes(attrs)
         mp.setOnErrorListener(self._on_error)
         mp.setOnCompletionListener(self._on_completion)
+        mp.setOnBufferingUpdateListener(self._on_buffering_update)
+        mp.setOnInfoListener(self._on_info)
+        self._buffer = 0
         v = self._volume / 100
         mp.setVolume(v, v)
 
@@ -125,6 +158,7 @@ class AndroidPlayer:
                 return
             mp.start()
             self._state = "Playing"
+            self._buffer = 100
             self._reconnector.reset()
         except Exception:
             if gen == self._generation and self.current_url is not None:
@@ -236,6 +270,33 @@ class AndroidPlayer:
     def now_playing(self) -> str:
         # android.media.MediaPlayer does not expose ICY stream titles.
         return ""
+
+    # ---- buffer -----------------------------------------------------------
+    MEDIA_INFO_BUFFERING_START = 701
+    MEDIA_INFO_BUFFERING_END = 702
+
+    def _on_buffering(self, mp, percent: int) -> None:
+        # For live streams Android reports the share of the pre-roll buffer that
+        # has been filled; 0 is sent constantly for some streams, so ignore it.
+        current = self._mp
+        if current is not None and mp.equals(current) and percent > 0:
+            self._buffer = int(percent)
+
+    def _on_player_info(self, mp, what: int) -> None:
+        current = self._mp
+        if current is None or not mp.equals(current):
+            return
+        if what == self.MEDIA_INFO_BUFFERING_START:
+            self._buffer = 0
+            self._state = "Buffering"
+        elif what == self.MEDIA_INFO_BUFFERING_END:
+            self._buffer = 100
+            self._state = "Playing"
+
+    @property
+    def buffer_percent(self) -> int:
+        """Fill level of the playback buffer, 0-100."""
+        return max(0, min(100, self._buffer))
 
     def release(self) -> None:
         self._closed = True

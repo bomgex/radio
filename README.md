@@ -27,6 +27,7 @@ The mobile UI on the desktop needs Kivy: `pip install "kivy[base]"`.
 * Volume control
 * Current track title when the station sends ICY metadata
 * Automatic reconnection when a stream drops (growing delay: 2, 4, 8, 15, 30 s)
+* Buffer fill indicator (drops to 0% while the player waits for data)
 * Station search in the [radio-browser.info](https://www.radio-browser.info) catalog:
   the Search button; a found station can be previewed or added to your list
 
@@ -37,6 +38,7 @@ The mobile UI on the desktop needs Kivy: `pip install "kivy[base]"`.
 l            show the list
 s            stop
 v 50         volume 50
+b            show player state and buffer fill
 f jazz       search "jazz" on radio-browser.info
 p 3          play search result no. 3
 a 3          add search result no. 3 to stations.json

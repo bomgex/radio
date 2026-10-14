@@ -53,6 +53,9 @@ class RadioPlayer:
         events = self._player.event_manager()
         events.event_attach(vlc.EventType.MediaPlayerEncounteredError, self._on_stream_lost)
         events.event_attach(vlc.EventType.MediaPlayerEndReached, self._on_stream_lost)
+        # Buffer fill level in percent, reported by VLC while (re)buffering.
+        self._buffer = 0
+        events.event_attach(vlc.EventType.MediaPlayerBuffering, self._on_buffering)
         # A stalled connection keeps VLC in "Playing" with no data flowing and
         # fires no event, so a watchdog checks that the stream position advances.
         self._last_pos = -1
@@ -67,6 +70,7 @@ class RadioPlayer:
         self._start(url)
 
     def _start(self, url: str) -> None:
+        self._buffer = 0
         self._media = self._instance.media_new(url)
         self._player.set_media(self._media)
         self._player.play()
@@ -74,6 +78,7 @@ class RadioPlayer:
     def stop(self) -> None:
         self._reconnector.cancel()
         self.current_url = None
+        self._buffer = 0
         self._player.stop()
 
     def is_playing(self) -> bool:
@@ -91,8 +96,17 @@ class RadioPlayer:
     # ---- reconnection -----------------------------------------------------
     def _on_stream_lost(self, _event) -> None:
         # Runs on VLC's event thread: never call libvlc here, just arm a timer.
+        self._buffer = 0
         if self.current_url is not None:
             self._reconnector.schedule()
+
+    def _on_buffering(self, event) -> None:
+        self._buffer = int(event.u.new_cache)
+
+    @property
+    def buffer_percent(self) -> int:
+        """Fill level of the playback buffer, 0-100."""
+        return max(0, min(100, self._buffer))
 
     def _reconnect(self) -> None:
         url = self.current_url

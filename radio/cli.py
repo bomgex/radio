@@ -25,7 +25,7 @@ def main() -> None:
             print(f"{mark} {i:2d}. {st.name:<28} {st.genre}")
 
     found = []
-    print("Commands: number - play, l - list, s - stop, v <0-100> - volume, q - quit")
+    print("Commands: number - play, l - list, s - stop, v <0-100> - volume, b - buffer, q - quit")
     print("Search:   f <name> - search, p <n> - play result, a <n> - add result to the list")
     show_list()
     try:
@@ -46,6 +46,8 @@ def main() -> None:
                 player.stop()
                 current = None
                 print("Stopped")
+            elif cmd == "b":
+                print(f"State: {player.state()}, buffer: {player.buffer_percent}%")
             elif cmd.startswith("f "):
                 try:
                     found = search_stations(cmd[2:])

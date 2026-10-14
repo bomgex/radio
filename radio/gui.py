@@ -62,6 +62,16 @@ class RadioApp(tk.Tk):
         self.lbl_track = ttk.Label(info, text="", foreground="#555")
         self.lbl_track.pack(anchor="w")
 
+        # Buffer fill indicator
+        buf = ttk.Frame(info)
+        buf.pack(fill="x", pady=(2, 0))
+        ttk.Label(buf, text="Buffer").pack(side="left")
+        self.buffer_var = tk.IntVar(value=0)
+        ttk.Progressbar(buf, variable=self.buffer_var, maximum=100,
+                        length=160).pack(side="left", padx=6)
+        self.lbl_buffer = ttk.Label(buf, text="0%", width=5, foreground="#555")
+        self.lbl_buffer.pack(side="left")
+
         # Controls
         ctl = ttk.Frame(self, padding=8)
         ctl.pack(fill="x")
@@ -163,6 +173,9 @@ class RadioApp(tk.Tk):
 
     # ---- polling ----------------------------------------------------------
     def _poll(self) -> None:
+        pct = self.player.buffer_percent if self.current is not None else 0
+        self.buffer_var.set(pct)
+        self.lbl_buffer.config(text=f"{pct}%")
         if self.current is not None:
             state = self.player.state()
             track = self.player.now_playing()

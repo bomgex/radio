@@ -94,6 +94,25 @@ KV = """
             shorten: True
         BoxLayout:
             size_hint_y: None
+            height: dp(24)
+            spacing: dp(8)
+            Label:
+                text: "Buffer"
+                size_hint_x: None
+                width: dp(52)
+                color: 0.75, 0.75, 0.75, 1
+            ProgressBar:
+                id: buffer_bar
+                max: 100
+                value: 0
+            Label:
+                id: lbl_buffer
+                text: "0%"
+                size_hint_x: None
+                width: dp(44)
+                color: 0.75, 0.75, 0.75, 1
+        BoxLayout:
+            size_hint_y: None
             height: dp(48)
             spacing: dp(8)
             Button:
@@ -314,6 +333,9 @@ class RadioKivyApp(App):
         self.main.refresh()
 
     def _poll(self, _dt):
+        pct = self.player.buffer_percent if self.current is not None else 0
+        self.main.ids.buffer_bar.value = pct
+        self.main.ids.lbl_buffer.text = f"{pct}%"
         if self.current is None:
             return
         state = self.player.state()
