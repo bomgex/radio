@@ -23,6 +23,12 @@ p4a.commit = e772ad93f20a
 orientation = portrait
 fullscreen = 0
 
+# Playback uses AndroidX Media3 ExoPlayer (android.media.MediaPlayer cannot
+# handle most Icecast AAC streams).  media3 1.4.x is the last line that
+# compiles against API 34; 1.5+ needs compileSdk 35.
+android.enable_androidx = True
+android.gradle_dependencies = androidx.media3:media3-exoplayer:1.4.1, androidx.media3:media3-exoplayer-hls:1.4.1
+
 android.permissions = INTERNET, WAKE_LOCK
 android.api = 34
 android.minapi = 24

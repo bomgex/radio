@@ -1,8 +1,15 @@
-"""Playback engine for Android: the system android.media.MediaPlayer via pyjnius.
+"""Playback engine for Android: AndroidX Media3 ExoPlayer via pyjnius.
 
-Exposes the same interface as radio.player.RadioPlayer so the Kivy UI does not
-care which one it talks to.  Stream drops (onError / onCompletion) and failed
-connections trigger an automatic reconnect with a growing delay.
+Why ExoPlayer instead of android.media.MediaPlayer: MediaPlayer fails on many
+Icecast/Shoutcast AAC streams (ADTS, HE-AAC), exposes no ICY titles and no
+buffer information.  ExoPlayer plays them, parses ICY metadata into the media
+title, reports the buffered duration and manages audio focus and wake/Wi-Fi
+locks itself.
+
+ExoPlayer must only be touched from the Android main (UI) thread, so every
+call is posted there with run_on_ui_thread and the results are cached in plain
+attributes that the Kivy thread reads.  The public interface matches
+radio.player.RadioPlayer.
 """
 from __future__ import annotations
 
@@ -10,179 +17,143 @@ import threading
 import time
 from typing import Optional
 
-from jnius import PythonJavaClass, autoclass, java_method
+from android.runnable import run_on_ui_thread
+from jnius import autoclass
 
 from .reconnect import STALL_SECONDS, Reconnector
 
-WATCHDOG_PERIOD = 1
-
-MediaPlayer = autoclass("android.media.MediaPlayer")
-AudioAttributes = autoclass("android.media.AudioAttributes")
-AudioAttributesBuilder = autoclass("android.media.AudioAttributes$Builder")
-AudioManager = autoclass("android.media.AudioManager")
-Context = autoclass("android.content.Context")
+ExoPlayerBuilder = autoclass("androidx.media3.exoplayer.ExoPlayer$Builder")
+MediaItem = autoclass("androidx.media3.common.MediaItem")
+AudioAttributesBuilder = autoclass("androidx.media3.common.AudioAttributes$Builder")
+C = autoclass("androidx.media3.common.C")
+Player = autoclass("androidx.media3.common.Player")
 PythonActivity = autoclass("org.kivy.android.PythonActivity")
 
-DUCK_VOLUME = 0.2
-
-
-class _OnErrorListener(PythonJavaClass):
-    __javainterfaces__ = ["android/media/MediaPlayer$OnErrorListener"]
-    __javacontext__ = "app"
-
-    def __init__(self, callback):
-        super().__init__()
-        self._callback = callback
-
-    @java_method("(Landroid/media/MediaPlayer;II)Z")
-    def onError(self, mp, what, extra):
-        self._callback(mp)
-        return True          # handled: suppress the default onCompletion call
-
-
-class _OnCompletionListener(PythonJavaClass):
-    __javainterfaces__ = ["android/media/MediaPlayer$OnCompletionListener"]
-    __javacontext__ = "app"
-
-    def __init__(self, callback):
-        super().__init__()
-        self._callback = callback
-
-    @java_method("(Landroid/media/MediaPlayer;)V")
-    def onCompletion(self, mp):
-        self._callback(mp)
-
-
-class _OnBufferingUpdateListener(PythonJavaClass):
-    __javainterfaces__ = ["android/media/MediaPlayer$OnBufferingUpdateListener"]
-    __javacontext__ = "app"
-
-    def __init__(self, callback):
-        super().__init__()
-        self._callback = callback
-
-    @java_method("(Landroid/media/MediaPlayer;I)V")
-    def onBufferingUpdate(self, mp, percent):
-        self._callback(mp, percent)
-
-
-class _OnInfoListener(PythonJavaClass):
-    __javainterfaces__ = ["android/media/MediaPlayer$OnInfoListener"]
-    __javacontext__ = "app"
-
-    def __init__(self, callback):
-        super().__init__()
-        self._callback = callback
-
-    @java_method("(Landroid/media/MediaPlayer;II)Z")
-    def onInfo(self, mp, what, extra):
-        self._callback(mp, what)
-        return True
-
-
-class _AudioFocusListener(PythonJavaClass):
-    __javainterfaces__ = ["android/media/AudioManager$OnAudioFocusChangeListener"]
-    __javacontext__ = "app"
-
-    def __init__(self, callback):
-        super().__init__()
-        self._callback = callback
-
-    @java_method("(I)V")
-    def onAudioFocusChange(self, change):
-        self._callback(change)
+TARGET_BUFFER_MS = 8000     # buffered audio ahead of playback shown as 100 %
+WATCHDOG_PERIOD = 1         # seconds between state samples
 
 
 class AndroidPlayer:
     def __init__(self) -> None:
-        self._mp = None
+        self._player = None
         self._volume = 70
         self._state = "Stopped"
-        self._generation = 0          # guards against late callbacks of an old stream
+        self._generation = 0          # ignores samples of an already replaced stream
         self.current_url: Optional[str] = None
         self._reconnector = Reconnector(self._reconnect)
-        # Keep listener objects alive: Java holds only weak references to them.
-        self._on_error = _OnErrorListener(self._on_stream_lost)
-        self._on_completion = _OnCompletionListener(self._on_stream_lost)
-        self._on_buffering_update = _OnBufferingUpdateListener(self._on_buffering)
-        self._on_info = _OnInfoListener(self._on_player_info)
         self._buffer = 0
-        self._focus_listener = _AudioFocusListener(self._on_focus_change)
-        self._audio_manager = PythonActivity.mActivity.getSystemService(Context.AUDIO_SERVICE)
-        # A stalled connection leaves MediaPlayer "playing" with no data and no
-        # error callback, so a watchdog checks that the position advances.
+        self._title = ""
         self._last_pos = -1
         self._last_advance = time.monotonic()
         self._closed = False
+        self._ui_create()
         threading.Thread(target=self._watchdog, daemon=True).start()
 
-    # ---- playback ---------------------------------------------------------
+    # ---- ExoPlayer calls (UI thread) ---------------------------------------
+    @run_on_ui_thread
+    def _ui_create(self) -> None:
+        attrs = (AudioAttributesBuilder()
+                 .setUsage(C.USAGE_MEDIA)
+                 .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                 .build())
+        player = ExoPlayerBuilder(PythonActivity.mActivity).build()
+        player.setAudioAttributes(attrs, True)      # True: ExoPlayer handles audio focus
+        player.setWakeMode(C.WAKE_MODE_NETWORK)     # keep CPU and Wi-Fi awake while playing
+        player.setVolume(self._volume / 100)
+        self._player = player
+
+    @run_on_ui_thread
+    def _ui_start(self, url: str) -> None:
+        player = self._player
+        if player is None:
+            return
+        player.stop()
+        player.clearMediaItems()
+        player.setMediaItem(MediaItem.fromUri(url))
+        player.prepare()
+        player.setPlayWhenReady(True)
+
+    @run_on_ui_thread
+    def _ui_stop(self) -> None:
+        player = self._player
+        if player is not None:
+            player.stop()
+            player.clearMediaItems()
+
+    @run_on_ui_thread
+    def _ui_set_volume(self, value: float) -> None:
+        if self._player is not None:
+            self._player.setVolume(value)
+
+    @run_on_ui_thread
+    def _ui_release(self) -> None:
+        player, self._player = self._player, None
+        if player is not None:
+            player.release()
+
+    @run_on_ui_thread
+    def _ui_sample(self, gen: int) -> None:
+        """Read ExoPlayer state into cached attributes; runs once a second."""
+        player = self._player
+        if player is None or gen != self._generation or self.current_url is None:
+            return
+        if player.getPlayerError() is not None:
+            self._lost()
+            return
+        playback_state = player.getPlaybackState()
+        if playback_state == Player.STATE_ENDED:
+            self._lost()
+            return
+
+        ahead_ms = player.getBufferedPosition() - player.getCurrentPosition()
+        self._buffer = max(0, min(100, int(100 * ahead_ms / TARGET_BUFFER_MS)))
+
+        if playback_state == Player.STATE_READY and player.isPlaying():
+            self._state = "Playing"
+            self._reconnector.reset()
+        elif playback_state == Player.STATE_BUFFERING:
+            self._state = "Buffering"
+
+        title = player.getMediaMetadata().title       # ICY StreamTitle, if any
+        self._title = str(title) if title is not None else ""
+
+        # Stall detection: a hung connection leaves the player "playing" with
+        # the position frozen and no error.
+        now = time.monotonic()
+        if self._state == "Playing":
+            pos = player.getCurrentPosition()
+            if pos != self._last_pos:
+                self._last_pos = pos
+                self._last_advance = now
+            elif now - self._last_advance > STALL_SECONDS:
+                self._last_advance = now
+                self._lost()
+        else:
+            self._last_advance = now
+
+    # ---- playback (any thread) ----------------------------------------------
     def play(self, url: str) -> None:
         self.stop()
         self.current_url = url
-        self._audio_manager.requestAudioFocus(
-            self._focus_listener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
         self._start(url)
 
     def _start(self, url: str) -> None:
-        self._release_mp()
         self._generation += 1
-        gen = self._generation
-
-        mp = MediaPlayer()
-        attrs = (AudioAttributesBuilder()
-                 .setUsage(AudioAttributes.USAGE_MEDIA)
-                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                 .build())
-        mp.setAudioAttributes(attrs)
-        mp.setOnErrorListener(self._on_error)
-        mp.setOnCompletionListener(self._on_completion)
-        mp.setOnBufferingUpdateListener(self._on_buffering_update)
-        mp.setOnInfoListener(self._on_info)
-        self._buffer = 0
-        v = self._volume / 100
-        mp.setVolume(v, v)
-
-        self._mp = mp
         self._state = "Opening"
-        # prepare() blocks while the stream buffers, so run it off the UI thread.
-        threading.Thread(target=self._prepare, args=(mp, url, gen), daemon=True).start()
-
-    def _prepare(self, mp, url: str, gen: int) -> None:
-        try:
-            mp.setDataSource(url)
-            mp.prepare()
-            if gen != self._generation:        # user switched station meanwhile
-                mp.release()
-                return
-            mp.start()
-            self._state = "Playing"
-            self._buffer = 100
-            self._reconnector.reset()
-        except Exception:
-            if gen == self._generation and self.current_url is not None:
-                self._state = "Reconnecting"
-                self._reconnector.schedule()
-
-    def _release_mp(self) -> None:
-        mp, self._mp = self._mp, None
-        if mp is not None:
-            try:
-                mp.reset()
-                mp.release()
-            except Exception:
-                pass
+        self._buffer = 0
+        self._title = ""
+        self._last_pos = -1
+        self._last_advance = time.monotonic()
+        self._ui_start(url)
 
     def stop(self) -> None:
         self._reconnector.cancel()
         self._generation += 1
         self.current_url = None
         self._state = "Stopped"
-        self._release_mp()
-        try:
-            self._audio_manager.abandonAudioFocus(self._focus_listener)
-        except Exception:
-            pass
+        self._buffer = 0
+        self._title = ""
+        self._ui_stop()
 
     def is_playing(self) -> bool:
         return self._state == "Playing"
@@ -192,12 +163,11 @@ class AndroidPlayer:
             return "Reconnecting"
         return self._state
 
-    # ---- reconnection -----------------------------------------------------
-    def _on_stream_lost(self, mp) -> None:
-        # Called from a Java thread, possibly for an already replaced player.
-        current = self._mp
-        if current is None or not mp.equals(current) or self.current_url is None:
+    # ---- reconnection -------------------------------------------------------
+    def _lost(self) -> None:
+        if self.current_url is None:
             return
+        self._buffer = 0
         self._state = "Reconnecting"
         self._reconnector.schedule()
 
@@ -210,48 +180,11 @@ class AndroidPlayer:
         while not self._closed:
             time.sleep(WATCHDOG_PERIOD)
             try:
-                self._check_stall()
+                self._ui_sample(self._generation)
             except Exception:
                 pass
 
-    def _check_stall(self) -> None:
-        now = time.monotonic()
-        mp = self._mp
-        if (self.current_url is None or self._reconnector.pending
-                or self._state != "Playing" or mp is None or not mp.isPlaying()):
-            self._last_pos = -1
-            self._last_advance = now
-            return
-        pos = mp.getCurrentPosition()
-        if pos != self._last_pos:
-            self._last_pos = pos
-            self._last_advance = now
-        elif now - self._last_advance > STALL_SECONDS:
-            self._last_advance = now
-            self._buffer = 0
-            self._state = "Reconnecting"
-            self._reconnector.schedule()
-
-    # ---- audio focus ------------------------------------------------------
-    def _on_focus_change(self, change: int) -> None:
-        mp = self._mp
-        if mp is None:
-            return
-        try:
-            if change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-                mp.setVolume(DUCK_VOLUME, DUCK_VOLUME)
-            elif change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-                if mp.isPlaying():
-                    mp.pause()
-            elif change == AudioManager.AUDIOFOCUS_GAIN:
-                v = self._volume / 100
-                mp.setVolume(v, v)
-                if self._state == "Playing" and not mp.isPlaying():
-                    mp.start()
-        except Exception:
-            pass
-
-    # ---- volume -----------------------------------------------------------
+    # ---- volume -------------------------------------------------------------
     @property
     def volume(self) -> int:
         return self._volume
@@ -259,50 +192,23 @@ class AndroidPlayer:
     @volume.setter
     def volume(self, value: float) -> None:
         self._volume = max(0, min(100, int(value)))
-        if self._mp is not None:
-            v = self._volume / 100
-            try:
-                self._mp.setVolume(v, v)
-            except Exception:
-                pass
+        self._ui_set_volume(self._volume / 100)
 
-    # ---- metadata ---------------------------------------------------------
+    # ---- metadata / buffer --------------------------------------------------
     def now_playing(self) -> str:
-        # android.media.MediaPlayer does not expose ICY stream titles.
-        return ""
-
-    # ---- buffer -----------------------------------------------------------
-    MEDIA_INFO_BUFFERING_START = 701
-    MEDIA_INFO_BUFFERING_END = 702
-
-    def _on_buffering(self, mp, percent: int) -> None:
-        # For live streams Android reports the share of the pre-roll buffer that
-        # has been filled; 0 is sent constantly for some streams, so ignore it.
-        current = self._mp
-        if current is not None and mp.equals(current) and percent > 0:
-            self._buffer = int(percent)
-
-    def _on_player_info(self, mp, what: int) -> None:
-        current = self._mp
-        if current is None or not mp.equals(current):
-            return
-        if what == self.MEDIA_INFO_BUFFERING_START:
-            self._buffer = 0
-            self._state = "Buffering"
-        elif what == self.MEDIA_INFO_BUFFERING_END:
-            self._buffer = 100
-            self._state = "Playing"
+        return self._title
 
     @property
     def buffer_percent(self) -> int:
-        """Fill level of the playback buffer, 0-100."""
-        return max(0, min(100, self._buffer))
+        """Seconds of audio buffered ahead, as a share of TARGET_BUFFER_MS."""
+        return self._buffer
 
     @property
     def input_rate_kbs(self) -> Optional[float]:
-        # android.media.MediaPlayer exposes no byte counters.
+        # ExoPlayer exposes no simple byte counter through this API.
         return None
 
     def release(self) -> None:
         self._closed = True
         self.stop()
+        self._ui_release()

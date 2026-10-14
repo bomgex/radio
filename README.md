@@ -1,8 +1,8 @@
 # Internet Radio in Python
 
 A simple internet radio player: a Tkinter desktop GUI, a console mode and a Kivy
-Android app. Desktop playback goes through libVLC, Android playback through the
-system `MediaPlayer`.
+Android app. Desktop playback goes through libVLC, Android playback through
+AndroidX Media3 ExoPlayer.
 
 ## Requirements (desktop)
 
@@ -50,12 +50,11 @@ q            quit
 ## Android
 
 The mobile version is written in Kivy ([radio/kivy_app.py](radio/kivy_app.py)) and plays
-audio through the system `android.media.MediaPlayer`
-([radio/android_player.py](radio/android_player.py)). Same features: station list,
-radio-browser.info search, volume, removing stations. Playback continues with the screen off.
-
-Limitation: the Android system player does not expose ICY stream titles, so the
-current-track line is not shown on the phone.
+audio with AndroidX Media3 ExoPlayer ([radio/android_player.py](radio/android_player.py)),
+which handles Icecast/Shoutcast MP3, AAC and HLS streams, shows ICY track titles, reports
+the buffered duration and keeps the CPU and Wi-Fi awake while playing. Same features as on
+the desktop: station list, radio-browser.info search, volume, removing stations, automatic
+reconnection.
 
 ### Building the APK
 
@@ -102,6 +101,6 @@ radio/cli.py             console mode
 radio/stations.py        loading / saving the list
 radio/browser.py         radio-browser.info API client
 radio/kivy_app.py        mobile UI (Kivy)
-radio/android_player.py  player via Android MediaPlayer
+radio/android_player.py  player via Media3 ExoPlayer (Android)
 buildozer.spec           APK build settings
 ```
