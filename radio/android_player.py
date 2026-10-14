@@ -12,10 +12,9 @@ from typing import Optional
 
 from jnius import PythonJavaClass, autoclass, java_method
 
-from .reconnect import Reconnector
+from .reconnect import STALL_SECONDS, Reconnector
 
-STALL_SECONDS = 12      # no playback progress for this long -> reconnect
-WATCHDOG_PERIOD = 2
+WATCHDOG_PERIOD = 1
 
 MediaPlayer = autoclass("android.media.MediaPlayer")
 AudioAttributes = autoclass("android.media.AudioAttributes")
@@ -229,6 +228,7 @@ class AndroidPlayer:
             self._last_advance = now
         elif now - self._last_advance > STALL_SECONDS:
             self._last_advance = now
+            self._buffer = 0
             self._state = "Reconnecting"
             self._reconnector.schedule()
 
@@ -297,6 +297,11 @@ class AndroidPlayer:
     def buffer_percent(self) -> int:
         """Fill level of the playback buffer, 0-100."""
         return max(0, min(100, self._buffer))
+
+    @property
+    def input_rate_kbs(self) -> Optional[float]:
+        # android.media.MediaPlayer exposes no byte counters.
+        return None
 
     def release(self) -> None:
         self._closed = True

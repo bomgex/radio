@@ -26,8 +26,10 @@ The mobile UI on the desktop needs Kivy: `pip install "kivy[base]"`.
 * Double-click or Enter on a station to play it
 * Volume control
 * Current track title when the station sends ICY metadata
-* Automatic reconnection when a stream drops (growing delay: 2, 4, 8, 15, 30 s)
-* Buffer fill indicator (drops to 0% while the player waits for data)
+* 8-second network buffer on the desktop, so short network stalls are not audible
+* Automatic reconnection when a stream drops or hangs (growing delay: 1, 2, 4, 8, 15, 30 s)
+* Live buffer indicator with the receive rate in kB/s (desktop); on Android the
+  indicator follows the system player's buffering events
 * Station search in the [radio-browser.info](https://www.radio-browser.info) catalog:
   the Search button; a found station can be previewed or added to your list
 

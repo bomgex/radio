@@ -47,7 +47,9 @@ def main() -> None:
                 current = None
                 print("Stopped")
             elif cmd == "b":
-                print(f"State: {player.state()}, buffer: {player.buffer_percent}%")
+                rate = player.input_rate_kbs
+                extra = "" if rate is None else f", receiving {rate:.0f} kB/s"
+                print(f"State: {player.state()}, buffer: {player.buffer_percent}%{extra}")
             elif cmd.startswith("f "):
                 try:
                     found = search_stations(cmd[2:])

@@ -4,7 +4,11 @@ from __future__ import annotations
 import threading
 from typing import Callable, Optional, Sequence
 
-DEFAULT_DELAYS = (2, 4, 8, 15, 30)
+DEFAULT_DELAYS = (1, 2, 4, 8, 15, 30)
+
+# Playback position not advancing for this long -> the stream is considered
+# stalled and gets reconnected.  Shared by both playback engines.
+STALL_SECONDS = 6
 
 
 class Reconnector:

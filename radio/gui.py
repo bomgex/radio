@@ -11,6 +11,13 @@ from .stations import Station, load_stations, save_stations
 POLL_MS = 1000
 
 
+def _buffer_text(percent: int, rate_kbs) -> str:
+    """'73%  16 kB/s', or just the percent when the engine reports no rate."""
+    if rate_kbs is None:
+        return f"{percent}%"
+    return f"{percent}%  {rate_kbs:.0f} kB/s"
+
+
 class RadioApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
@@ -69,7 +76,7 @@ class RadioApp(tk.Tk):
         self.buffer_var = tk.IntVar(value=0)
         ttk.Progressbar(buf, variable=self.buffer_var, maximum=100,
                         length=160).pack(side="left", padx=6)
-        self.lbl_buffer = ttk.Label(buf, text="0%", width=5, foreground="#555")
+        self.lbl_buffer = ttk.Label(buf, text="0%", width=16, foreground="#555")
         self.lbl_buffer.pack(side="left")
 
         # Controls
@@ -175,7 +182,7 @@ class RadioApp(tk.Tk):
     def _poll(self) -> None:
         pct = self.player.buffer_percent if self.current is not None else 0
         self.buffer_var.set(pct)
-        self.lbl_buffer.config(text=f"{pct}%")
+        self.lbl_buffer.config(text=_buffer_text(pct, self.player.input_rate_kbs))
         if self.current is not None:
             state = self.player.state()
             track = self.player.now_playing()

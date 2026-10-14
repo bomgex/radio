@@ -109,7 +109,10 @@ KV = """
                 id: lbl_buffer
                 text: "0%"
                 size_hint_x: None
-                width: dp(44)
+                width: dp(110)
+                halign: "right"
+                text_size: self.size
+                valign: "middle"
                 color: 0.75, 0.75, 0.75, 1
         BoxLayout:
             size_hint_y: None
@@ -334,8 +337,9 @@ class RadioKivyApp(App):
 
     def _poll(self, _dt):
         pct = self.player.buffer_percent if self.current is not None else 0
+        rate = self.player.input_rate_kbs
         self.main.ids.buffer_bar.value = pct
-        self.main.ids.lbl_buffer.text = f"{pct}%"
+        self.main.ids.lbl_buffer.text = f"{pct}%" if rate is None else f"{pct}%  {rate:.0f} kB/s"
         if self.current is None:
             return
         state = self.player.state()
